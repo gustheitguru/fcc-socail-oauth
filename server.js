@@ -6,6 +6,8 @@ const fccTesting  = require('./freeCodeCamp/fcctesting.js');
 const session     = require('express-session');
 const mongo       = require('mongodb').MongoClient;
 const passport    = require('passport');
+const env         = require("dotenv").config();
+const GitHubStrategy = require("passport-github");
 
 const app = express();
 
@@ -17,7 +19,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 app.set('view engine', 'pug')
 
-mongo.connect(process.env.DATABASE, (err, db) => {
+mongo.connect(process.env.DATABASE, { useUnifiedTopology: true }, (err, db) => {
     if(err) {
         console.log('Database error: ' + err);
     } else {
@@ -58,6 +60,32 @@ mongo.connect(process.env.DATABASE, (err, db) => {
       
       
       
+    app.route("/auth/github").get(passport.authenticate("github"));
+
+    app
+      .route("/auth/github/callback")
+      .get(
+        passport.authenticate("github", { failureRedirect: "/" }),
+        (req, res) => {
+          res.redirect("/profile");
+        }
+      );
+
+    passport.use(
+      new GitHubStrategy(
+        {
+          clientID: process.env.GITHUB_CLIENT_ID,
+          clientSecret: process.env.GITHUB_CLIENT_SECRET,
+          callbackURL: "https://gustheitguru-fcc-socail-oauth.glitch.me/auth/github/callback"
+        },
+        function(accessToken, refreshToken, profile, cb) {
+          console.log(profile);
+          db.findOrCreate({ githubId: profile.id }, function(err, user) {
+            return cb(err, user);
+          });
+        }
+      )
+    );
       
       
       
